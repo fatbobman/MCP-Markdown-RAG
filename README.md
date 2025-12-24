@@ -1,6 +1,7 @@
 <div align="center">
   <img src="docs/banner.png" alt="MCP-Markdown-RAG" width="800" style="border-radius:10px;"/>
   <h1>MCP-Markdown-RAG</h1>
+  <p><em>Fork version with enhanced features</em></p>
   <p>
   <img alt="GitHub forks" src="https://img.shields.io/github/forks/Zackriya-Solutions/MCP-Markdown-RAG"/>
   <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/Zackriya-Solutions/MCP-Markdown-RAG">
@@ -17,7 +18,52 @@
 A **Model Context Protocol (MCP)** server that provides a **local-first RAG engine** for your markdown documents. This server uses a file-based Milvus vector database to index your notes, enabling Large Language Models (LLMs) to perform semantic search and retrieve relevant content from your local files.
 
 > [!NOTE]
-> This project is in active development. The API and implementation are subject to change. We are exploring future enhancements, including a potential port to an Obsidian plugin for seamless vault integration.
+> This is a fork version with additional features. The original project is [MCP-Markdown-RAG](https://github.com/Zackriya-Solutions/MCP-Markdown-RAG) by Zackriya Solutions.
+
+## 🔄 Fork 版本改动
+
+本 fork 版本在原始项目基础上增加了以下功能：
+
+### 新增功能
+
+1. **环境变量配置支持**
+   - `MCP_RAG_STORAGE_PATH`: 自定义数据库存储路径（默认: `./.db`）
+   - `MCP_RAG_DOCS_PATH`: 设置默认文档索引目录
+
+2. **扩展文件格式支持**
+   - 支持 `.mdx` 文件格式（除了原有的 `.md` 文件）
+   - 适合 React/Next.js 项目中的 MDX 文档
+
+3. **改进的递归索引**
+   - 优化了递归索引的实现方式，提高性能
+
+### 配置示例
+
+你可以在 MCP 配置文件中通过环境变量自定义路径：
+
+```json
+{
+  "mcpServers": {
+    "markdown_rag": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/MCP-Markdown-RAG",
+        "run",
+        "server.py"
+      ],
+      "env": {
+        "MCP_RAG_STORAGE_PATH": "/path/to/your/database",
+        "MCP_RAG_DOCS_PATH": "/path/to/your/docs"
+      }
+    }
+  }
+}
+```
+
+**配置说明：**
+- `MCP_RAG_STORAGE_PATH`: 数据库和索引跟踪文件的存储位置
+- `MCP_RAG_DOCS_PATH`: 默认文档目录（如果调用 `index_documents` 时不指定 `directory` 参数，将使用此路径）
 
 ## 🎯 Key Features
 
@@ -42,6 +88,7 @@ The server operates in two main phases, exposing its functionality through MCP t
       - **Full Reindex** (force_reindex=True): Clears and rebuilds the entire index from scratch.
       - **Incremental Update** (force_reindex=False, default): Automatically detects and re-indexes only changed files by comparing them against a tracking log. Deleted or modified chunks are pruned and replaced to keep the index up-to-date.
       - **Recursive Indexing** (recursive=False, default): Recursively indexes all subdirectories.
+      - **File Format Support**: Supports both `.md` and `.mdx` file formats.
 
 2.  **Searching**:
 
@@ -60,8 +107,9 @@ The server operates in two main phases, exposing its functionality through MCP t
 
   - **Description**: Indexes Markdown documents for semantic search. Converts each file into structured vector chunks and inserts them into the Milvus database.
   - **Incremental Indexing**: Automatically reindexes only changed files unless force_reindex=True is passed.
+  - **Supported File Formats**: `.md` and `.mdx` files
   - **Arguments**:
-    - `directory` (string, optional): The path to the folder containing .md files. Defaults to current directory.
+    - `directory` (string, optional): The path to the folder containing .md or .mdx files. Defaults to `MCP_RAG_DOCS_PATH` environment variable or current directory.
     - `force_reindex` (boolean, optional): If True, clears and rebuilds the full index. Defaults to False.
     - `recursive` (boolean, optional): If True, recursively indexes all subdirectories. Defaults to False.
 
@@ -85,8 +133,9 @@ git clone https://github.com/Zackriya-Solutions/MCP-Markdown-RAG.git
 
 ### Step 2: Configure Your Host App
 
-Configure your MCP host application (e.g., Windsurf, Claude.app) to use the server. Add the following to your settings file:
+Configure your MCP host application (e.g., Cursor, Claude Desktop, Windsurf) to use the server. Add the following to your settings file:
 
+**基础配置：**
 ```json
 {
   "mcpServers": {
@@ -103,9 +152,44 @@ Configure your MCP host application (e.g., Windsurf, Claude.app) to use the serv
 }
 ```
 
-> **Note**: Replace `/ABSOLUTE/PATH/TO/MCP-Markdown-RAG` with the absolute path to where you cloned this repository.
+**推荐配置（使用环境变量）：**
+```json
+{
+  "mcpServers": {
+    "markdown_rag": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/MCP-Markdown-RAG",
+        "run",
+        "server.py"
+      ],
+      "env": {
+        "MCP_RAG_STORAGE_PATH": "/path/to/your/database/storage",
+        "MCP_RAG_DOCS_PATH": "/path/to/your/documents"
+      }
+    }
+  }
+}
+```
 
+> **Note**: Replace `/ABSOLUTE/PATH/TO/MCP-Markdown-RAG` with the absolute path to where you cloned this repository.
+> 
 > **Note**: The first run will take a while and the same for the first indexing, as it needs to download the embedding model(~50MB).
+> 
+> **注意**: 
+> - `MCP_RAG_STORAGE_PATH`: 数据库存储路径（存储 Milvus 数据库和索引跟踪文件）
+> - `MCP_RAG_DOCS_PATH`: 默认文档目录（可选，如果不设置，需要在调用工具时指定 `directory` 参数）
+
+### Step 3: 使用示例
+
+**索引所有文档（包括子目录）：**
+- 在 Cursor 或支持的 MCP 客户端中，直接说："索引所有文档，包括所有子目录"
+- 或者调用工具时设置：`recursive: true`, `force_reindex: true`
+
+**搜索文档：**
+- 直接提问："搜索关于 SwiftUI 的内容"
+- 系统会自动使用 `search_documents` 工具进行语义搜索
 
 ## 📈 What's Next? (Roadmap)
 

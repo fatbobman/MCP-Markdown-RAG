@@ -59,15 +59,16 @@ def update_tracking_file(processed_files: list[str], is_clear: bool = False):
 
 def list_md_files(base_dir: str, recursive: bool = False) -> list[str]:
     md_files = []
+    extensions = (".md", ".mdx")
     if recursive:
         for root, dirs, files in os.walk(base_dir):
             dirs[:] = [d for d in dirs if not d.startswith(".")]
             for file in files:
-                if file.endswith(".md"):
+                if file.endswith(extensions):
                     md_files.append(os.path.join(root, file))
     else:
         for file in os.listdir(base_dir):
-            if file.endswith(".md"):
+            if file.endswith(extensions):
                 md_files.append(os.path.join(base_dir, file))
     return md_files
 

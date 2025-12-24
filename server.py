@@ -51,12 +51,24 @@ def search(query: str, k: int) -> list[list[SearchResult]]:
 )
 async def index_documents(
     current_working_directory: str = Field(description="Current working directory"),
-    directory: str = Field("", description="Directory to index"),
+    directory: str = Field("", description="Directory to index (defaults to MCP_RAG_DOCS_PATH env var if not specified)"),
     recursive: bool = Field(False, description="Recursively index subdirectories"),
     force_reindex: bool = Field(False, description="Force reindex"),
 ):
     # TODO: Implement Client Elicitation when it is available in Popular clients
-    target_path = os.path.join(current_working_directory, directory)
+    # Use environment variable as default if directory is not specified
+    if not directory:
+        directory = os.getenv("MCP_RAG_DOCS_PATH", "")
+    
+    # Handle absolute path or relative path
+    # If directory is absolute (from env var or parameter), use it directly
+    # Otherwise join with current_working_directory
+    if directory and os.path.isabs(directory):
+        target_path = directory
+    elif directory:
+        target_path = os.path.join(current_working_directory, directory)
+    else:
+        target_path = current_working_directory
 
     if not os.path.exists(target_path):
         return {"message": "Directory does not exist!"}
@@ -66,11 +78,22 @@ async def index_documents(
             milvus_client.drop_collection(COLLECTION_NAME)
         ensure_collection(milvus_client)
 
-        all_files = list_md_files(target_path, recursive=recursive)
-        documents = SimpleDirectoryReader(
-            input_files=all_files, required_exts=[".md"]
-        ).load_data()
-        processed_files = [doc.metadata["file_path"] for doc in documents]
+        # Use input_dir when recursive, as SimpleDirectoryReader handles recursion automatically
+        # Use input_files when not recursive for better control
+        if recursive:
+            documents = SimpleDirectoryReader(
+                input_dir=target_path, required_exts=[".md", ".mdx"]
+            ).load_data()
+            # Get processed files from documents metadata
+            processed_files = [doc.metadata.get("file_path", "") for doc in documents if doc.metadata.get("file_path")]
+        else:
+            all_files = list_md_files(target_path, recursive=False)
+            if not all_files:
+                return {"message": f"No .md or .mdx files found in {target_path}"}
+            documents = SimpleDirectoryReader(
+                input_files=all_files, required_exts=[".md", ".mdx"]
+            ).load_data()
+            processed_files = [doc.metadata["file_path"] for doc in documents]
 
     else:
         changed_files = get_changed_files(target_path, recursive=recursive)
@@ -90,7 +113,7 @@ async def index_documents(
 
         # Load only changed files to index
         documents = SimpleDirectoryReader(
-            input_files=changed_files, required_exts=[".md"]
+            input_files=changed_files, required_exts=[".md", ".mdx"]
         ).load_data()
         # Update tracking file
         processed_files = changed_files
