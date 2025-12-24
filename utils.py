@@ -5,7 +5,8 @@ import os
 from pydantic import BaseModel
 from pymilvus import MilvusClient
 
-INDEX_DATA_PATH = "./.db"
+DEFAULT_DB_PATH = "./.db"
+INDEX_DATA_PATH = os.getenv("MCP_RAG_STORAGE_PATH", DEFAULT_DB_PATH)
 INDEX_TRACKING_FILE = "index_tracking.json"
 COLLECTION_NAME = "markdown_vectors"
 
